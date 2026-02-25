@@ -1,0 +1,16 @@
+.{
+    .name = .oma_basic_example,
+    .version = "0.0.0",
+    .fingerprint = 0x4bdbf708e4ee7ab7,
+    .minimum_zig_version = "0.16.0-dev.2637+6a9510c0e",
+    .dependencies = .{
+        .oma = .{
+            .path = "../..",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
