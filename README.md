@@ -16,7 +16,7 @@ Zig's `@Vector` picks SIMD width at compile time, which means distributed binari
 ### 1. Add the dependency
 
 ```sh
-zig fetch --save git+https://github.com/antholeole/oma
+zig fetch --save git+https://github.com/ATTron/oma
 ```
 
 ### 2. Write a hot function
