@@ -90,7 +90,7 @@ pub fn main(init: std.process.Init) !void {
 }
 ```
 
-`resolveFrom` detects the CPU, picks the best variant, and returns a typed function pointer. Detection is cached after the first call, so `resolveFrom` is safe to call in hot paths.
+`resolveFrom` detects the CPU, picks the best variant, and returns a typed function pointer. CPU detection is cached, so repeated calls just do a few enum comparisons — cheap enough to call inline.
 
 ## Shared libraries / FFI
 

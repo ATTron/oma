@@ -90,8 +90,8 @@ pub fn resolveNoIo(comptime F: type, comptime name: []const u8) F {
     return resolve(F, name, std.Io.Threaded.global_single_threaded.io());
 }
 
-/// Resolve against a pre-detected level and custom level list. Use this when
-/// you need to resolve many functions at once or dispatch over non-default levels:
+/// Resolve against a pre-detected level and custom level list. Use this
+/// when you need custom levels or want to resolve many functions in a batch:
 ///
 ///   const level = oma.detectCpuLevel(io);
 ///   const dot = oma.resolveForLevel(DotFn, "dot", levels, level);
