@@ -26,32 +26,48 @@ pub const default_levels: []const CpuLevel = switch (builtin.target.cpu.arch) {
     else => x86_64_levels,
 };
 
+var cached_level: ?CpuLevel = null;
+
+/// Detect the CPU level of the current machine. The result is cached after
+/// the first call; subsequent calls return instantly.
 pub fn detectCpuLevel(io: std.Io) CpuLevel {
+    if (cached_level) |level| return level;
     var query: std.Target.Query = .fromTarget(&builtin.target);
     query.cpu_model = .native;
     const target = std.zig.system.resolveTargetQuery(io, query) catch return fallbackLevel();
-    return levelFromFeatures(target.cpu.arch, target.cpu.features);
+    const level = levelFromFeatures(target.cpu.arch, target.cpu.features);
+    cached_level = level;
+    return level;
 }
 
-/// For shared libraries / FFI where there's no Io from main.
+/// For shared libraries / FFI where there's no `std.Io` from main.
 pub fn detectCpuLevelNoIo() CpuLevel {
     return detectCpuLevel(std.Io.Threaded.global_single_threaded.io());
 }
 
+/// Returns the CPU level the current binary was compiled for. This is a
+/// comptime value — use `detectCpuLevel` for runtime detection.
 pub fn buildCpuLevel() CpuLevel {
     return levelFromFeatures(builtin.target.cpu.arch, builtin.target.cpu.features);
 }
 
-/// Detect + resolve in one call. Type is derived from the source module:
-///   const sum = oma.resolveFrom(vector_sum, "sum", io);
+/// Detect the CPU and resolve a function pointer in one call. The function
+/// type is derived from `Source`, which must be an `@import`ed module
+/// registered via `addMultiVersion(.name = ...)`.
+///
+///   const dot = oma.resolveFrom(dot_product, "dot", io);
+///
+/// If using `.name` causes a file-ownership conflict, use `resolve` with
+/// an explicit function pointer type instead.
 pub fn resolveFrom(
     comptime Source: type,
     comptime name: []const u8,
     io: std.Io,
 ) *const @TypeOf(@field(Source, name)) {
-    return resolve(*const @TypeOf(@field(Source, name)), name, default_levels, io);
+    return resolveForLevel(*const @TypeOf(@field(Source, name)), name, default_levels, detectCpuLevel(io));
 }
 
+/// `resolveFrom` for shared libraries / FFI where there's no `std.Io`.
 pub fn resolveFromNoIo(
     comptime Source: type,
     comptime name: []const u8,
@@ -59,17 +75,27 @@ pub fn resolveFromNoIo(
     return resolveFrom(Source, name, std.Io.Threaded.global_single_threaded.io());
 }
 
-/// Explicit type + levels variant.
-pub fn resolve(comptime F: type, comptime name: []const u8, comptime levels: []const CpuLevel, io: std.Io) F {
-    return resolveForLevel(F, name, levels, detectCpuLevel(io));
+/// Like `resolveFrom`, but you supply the function pointer type directly.
+/// Use this when you can't use `addMultiVersion(.name = ...)` due to
+/// file-ownership conflicts.
+///
+///   const MyFn = *const fn(@Vector(4, f32), @Vector(4, f32)) callconv(.c) f32;
+///   const dot = oma.resolve(MyFn, "dot", io);
+pub fn resolve(comptime F: type, comptime name: []const u8, io: std.Io) F {
+    return resolveForLevel(F, name, default_levels, detectCpuLevel(io));
 }
 
-pub fn resolveNoIo(comptime F: type, comptime name: []const u8, comptime levels: []const CpuLevel) F {
-    return resolve(F, name, levels, std.Io.Threaded.global_single_threaded.io());
+/// `resolve` for shared libraries / FFI where there's no `std.Io`.
+pub fn resolveNoIo(comptime F: type, comptime name: []const u8) F {
+    return resolve(F, name, std.Io.Threaded.global_single_threaded.io());
 }
 
-/// Skip detection — use when you've already called detectCpuLevel and want
-/// to resolve multiple functions without re-detecting.
+/// Resolve against a pre-detected level and custom level list. Use this when
+/// you need to resolve many functions at once or dispatch over non-default levels:
+///
+///   const level = oma.detectCpuLevel(io);
+///   const dot = oma.resolveForLevel(DotFn, "dot", levels, level);
+///   const sum = oma.resolveForLevel(SumFn, "sum", levels, level);
 pub fn resolveForLevel(comptime F: type, comptime name: []const u8, comptime levels: []const CpuLevel, detected: CpuLevel) F {
     inline for (levels) |level| {
         if (@intFromEnum(detected) >= @intFromEnum(level))
@@ -79,6 +105,7 @@ pub fn resolveForLevel(comptime F: type, comptime name: []const u8, comptime lev
 }
 
 /// Exports every pub callconv(.c) fn with a level-suffixed symbol name.
+/// Called internally by `addMultiVersion`; you shouldn't need this directly.
 pub fn exportAll(comptime Module: type) void {
     for (@typeInfo(Module).@"struct".decls) |decl| {
         const func = @field(Module, decl.name);
@@ -87,11 +114,7 @@ pub fn exportAll(comptime Module: type) void {
     }
 }
 
-pub fn exportAs(comptime name: []const u8, comptime func: anytype) void {
-    @export(&func, .{ .name = buildCpuLevel().suffix() ++ "_" ++ name });
-}
-
-pub fn externFn(comptime F: type, comptime level: CpuLevel, comptime name: []const u8) F {
+fn externFn(comptime F: type, comptime level: CpuLevel, comptime name: []const u8) F {
     return @extern(F, .{ .name = level.suffix() ++ "_" ++ name });
 }
 

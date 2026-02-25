@@ -43,14 +43,25 @@ pub fn build(b: *std.Build) void {
 }
 
 /// Compile `source` once per CPU level and link all variants into `compile`.
+///
+/// If multiple compile steps share a `root_module`, call once per source file
+/// per shared module — not once per compile step — to avoid duplicate symbols.
 pub fn addMultiVersion(
     oma_dep: *std.Build.Dependency,
     compile: *std.Build.Step.Compile,
     options: struct {
         source: std.Build.LazyPath,
-        /// If set, the source becomes importable via @import(name) so resolveFrom can derive types.
+        /// If set, the source becomes importable via `@import(name)` so `resolveFrom`
+        /// can derive types. **Caveat:** if the source file transitively `@import`s
+        /// files that the root module also imports, Zig will error with a
+        /// file-ownership conflict. Workaround: omit `.name` and use
+        /// `resolve`/`resolveNoIo` with explicit function pointer types instead.
         name: ?[]const u8 = null,
         levels: ?[]const root.CpuLevel = null,
+        /// Extra modules to make available inside the source file.
+        /// **Do not** pass the parent compile step's own root module here — it
+        /// creates a circular build dependency. Factor shared types into a
+        /// separate module instead.
         imports: []const std.Build.Module.Import = &.{},
     },
 ) void {

@@ -90,7 +90,7 @@ pub fn main(init: std.process.Init) !void {
 }
 ```
 
-`resolveFrom` detects the CPU, picks the best variant, and returns a typed function pointer
+`resolveFrom` detects the CPU, picks the best variant, and returns a typed function pointer. Detection is cached after the first call, so `resolveFrom` is safe to call in hot paths.
 
 ## Shared libraries / FFI
 
@@ -107,7 +107,7 @@ These use `std.Io.Threaded.global_single_threaded` internally. The Io versions a
 
 **Build time**: `addMultiVersion` generates a tiny wrapper that calls `exportAll` on your module. It compiles this wrapper N times — once per CPU level. Each compilation targets a different CPU model, so `suggestVectorLength` returns different widths and `@Vector` picks the right registers. Variants get unique symbol names like `x86_64_v3_dot`.
 
-**Runtime**: `detectCpuLevel` asks the stdlib what CPU we're on. `resolveForLevel` walks the levels list highest-first and returns the `@extern` pointer for the best match.
+**Runtime**: `detectCpuLevel` detects the CPU once and caches the result; subsequent calls return instantly. `resolveForLevel` walks the levels list highest-first and returns the `@extern` pointer for the best match.
 
 ## Overriding levels
 
@@ -118,12 +118,19 @@ oma.addMultiVersion(oma_dep, exe, .{
 });
 ```
 
-Use the same slice at dispatch time:
+Use `resolveForLevel` to dispatch against custom levels at runtime:
 
 ```zig
 const levels = &.{ .x86_64_v3, .x86_64 };
+const level = oma.detectCpuLevel(io);
 const fn_ptr = oma.resolveForLevel(MyFn, "my_func", levels, level);
 ```
+
+## Caveats
+
+- **`.name` and shared files**: If your hot file `@import`s files that the root module also uses, Zig errors with a file-ownership conflict. Fix: omit `.name` and use `resolve`/`resolveNoIo` with explicit function pointer types.
+- **`.imports` and circular deps**: Don't pass the parent compile step's own module as an import — it creates a dependency loop. Factor shared types into a standalone module.
+- **Shared `root_module`**: If multiple compile steps share a `root_module`, call `addMultiVersion` once per source per shared module, not per compile step.
 
 ## Requirements
 
