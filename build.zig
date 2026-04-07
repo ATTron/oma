@@ -63,6 +63,8 @@ pub fn addMultiVersion(
         /// creates a circular build dependency. Factor shared types into a
         /// separate module instead.
         imports: []const std.Build.Module.Import = &.{},
+        /// Force PIC on multi-versioned objects (for shared libraries).
+        pic: ?bool = null,
     },
 ) void {
     const b = compile.step.owner;
@@ -92,10 +94,12 @@ pub fn addMultiVersion(
         query.cpu_model = .{ .explicit = cpuModelForLevel(level) };
         const resolved = b.resolveTargetQuery(query);
 
+        const pic = options.pic orelse (compile.linkage == .dynamic);
         const user_mod = b.createModule(.{
             .root_source_file = options.source,
             .target = resolved,
             .optimize = compile.root_module.optimize orelse .Debug,
+            .pic = pic,
         });
         for (options.imports) |imp| user_mod.addImport(imp.name, imp.module);
 
@@ -103,6 +107,7 @@ pub fn addMultiVersion(
             .root_source_file = wrapper_source,
             .target = resolved,
             .optimize = compile.root_module.optimize orelse .Debug,
+            .pic = pic,
         });
         variant_mod.addImport("oma", oma_dep.module("oma"));
         variant_mod.addImport("_oma_source", user_mod);
