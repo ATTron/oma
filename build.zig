@@ -94,7 +94,7 @@ pub fn addMultiVersion(
         query.cpu_model = .{ .explicit = cpuModelForLevel(level) };
         const resolved = b.resolveTargetQuery(query);
 
-        const pic = options.pic orelse (compile.linkage == .dynamic);
+        const pic = options.pic orelse compile.root_module.pic;
         const user_mod = b.createModule(.{
             .root_source_file = options.source,
             .target = resolved,
