@@ -16,6 +16,10 @@ Zig's `@Vector` picks SIMD width at compile time, which means distributed binari
 ### 1. Add the dependency
 
 ```sh
+# pinned to a release (requires Zig 0.16.0)
+zig fetch --save https://github.com/ATTron/oma/archive/refs/tags/v0.0.1.tar.gz
+
+# latest (tracks Zig master)
 zig fetch --save git+https://github.com/ATTron/oma
 ```
 
@@ -134,4 +138,4 @@ const fn_ptr = oma.resolveForLevel(MyFn, "my_func", levels, level);
 
 ## Requirements
 
-Right now this only targets Zig 0.16.0-dev* or later
+Requires Zig 0.16.0+.
