@@ -2,9 +2,8 @@
     .name = .oma,
     .version = "0.0.1",
     .fingerprint = 0x562c112be5b0a996, // Changing this has security and trust implications.
-    .minimum_zig_version = "0.16.0",
-    .dependencies = .{
-    },
+    .minimum_zig_version = "0.17.0-dev.956+2dca73595",
+    .dependencies = .{},
     .paths = .{
         "build.zig",
         "build.zig.zon",
