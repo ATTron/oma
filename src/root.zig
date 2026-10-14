@@ -98,7 +98,7 @@ pub fn resolveNoIo(comptime F: type, comptime name: []const u8) F {
 ///   const sum = oma.resolveForLevel(SumFn, "sum", levels, level);
 pub fn resolveForLevel(comptime F: type, comptime name: []const u8, comptime levels: []const CpuLevel, detected: CpuLevel) F {
     inline for (levels) |level| {
-        if (@intFromEnum(detected) >= @intFromEnum(level))
+        if (@backingInt(detected) >= @backingInt(level))
             return externFn(F, level, name);
     }
     return externFn(F, levels[levels.len - 1], name);
@@ -107,10 +107,10 @@ pub fn resolveForLevel(comptime F: type, comptime name: []const u8, comptime lev
 /// Exports every pub callconv(.c) fn with a level-suffixed symbol name.
 /// Called internally by `addMultiVersion`; you shouldn't need this directly.
 pub fn exportAll(comptime Module: type) void {
-    for (@typeInfo(Module).@"struct".decls) |decl| {
-        const func = @field(Module, decl.name);
+    for (@typeInfo(Module).@"struct".decl_names) |decl_name| {
+        const func = @field(Module, decl_name);
         if (isCFunc(@TypeOf(func)))
-            @export(&func, .{ .name = buildCpuLevel().suffix() ++ "_" ++ decl.name });
+            @export(&func, .{ .name = buildCpuLevel().suffix() ++ "_" ++ decl_name });
     }
 }
 
@@ -145,7 +145,7 @@ fn levelFromFeatures(arch: std.Target.Cpu.Arch, feats: std.Target.Cpu.Feature.Se
 
 fn isCFunc(comptime T: type) bool {
     return switch (@typeInfo(T)) {
-        .@"fn" => |f| std.meta.activeTag(f.calling_convention) == std.meta.activeTag(std.builtin.CallingConvention.c),
+        .@"fn" => |f| std.meta.activeTag(f.attrs.@"callconv") == std.meta.activeTag(std.lang.CallingConvention.c),
         else => false,
     };
 }

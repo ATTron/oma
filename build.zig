@@ -68,7 +68,7 @@ pub fn addMultiVersion(
     },
 ) void {
     const b = compile.step.owner;
-    const arch = compile.root_module.resolved_target.?.query.cpu_arch orelse builtin.cpu.arch;
+    const arch = compile.root_module.resolved_target.?.query.cpu_arch orelse builtin.target.cpu.arch;
     const levels = options.levels orelse defaultLevelsForArch(arch);
 
     // Thin wrapper that auto-exports all pub callconv(.c) fns from the user's source.
@@ -83,7 +83,7 @@ pub fn addMultiVersion(
         const type_mod = b.createModule(.{
             .root_source_file = options.source,
             .target = compile.root_module.resolved_target,
-            .optimize = compile.root_module.optimize orelse .Debug,
+            .optimize = compile.root_module.optimize orelse .debug,
         });
         for (options.imports) |imp| type_mod.addImport(imp.name, imp.module);
         compile.root_module.addImport(name, type_mod);
@@ -98,7 +98,7 @@ pub fn addMultiVersion(
         const user_mod = b.createModule(.{
             .root_source_file = options.source,
             .target = resolved,
-            .optimize = compile.root_module.optimize orelse .Debug,
+            .optimize = compile.root_module.optimize orelse .debug,
             .pic = pic,
         });
         for (options.imports) |imp| user_mod.addImport(imp.name, imp.module);
@@ -106,7 +106,7 @@ pub fn addMultiVersion(
         const variant_mod = b.createModule(.{
             .root_source_file = wrapper_source,
             .target = resolved,
-            .optimize = compile.root_module.optimize orelse .Debug,
+            .optimize = compile.root_module.optimize orelse .debug,
             .pic = pic,
         });
         variant_mod.addImport("oma", oma_dep.module("oma"));
